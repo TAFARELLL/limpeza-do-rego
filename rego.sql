@@ -1,3 +1,6 @@
+CREATE DATABASE limpeza_do_Rego;
+USE limpeza_do_Rego;
+
 CREATE TABLE avaliacoes(
     id INT PRIMARY KEY AUTO_INCREMENT,
     professor VARCHAR(100) NOT NULL,
