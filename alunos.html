@@ -1,1 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking das Salas | Limpeza do Rego</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+    <div class="container">
+        <header>
+            <h1>🏆 Ranking Bimestral de Limpeza</h1>
+            <p>A turma líder no final do bimestre garante o Dia de Cinema!</p>
+        </header>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Posição</th>
+                    <th>Turma</th>
+                    <th>Avaliações</th>
+                    <th>Pontuação Total</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted);">
+                        Carregando classificação...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function carregarRanking() {
+            const tbody = document.getElementById('tabela-corpo');
+
+            try {
+                const resposta = await fetch('http://localhost:3000/api/ranking');
+                const salas = await resposta.json();
+
+                if (salas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhuma avaliação registrada ainda.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = salas.map((item, index) => {
+                    const posicao = index + 1;
+                    const classeMedalha = posicao <= 3 ? `rank-${posicao}` : '';
+
+                    return `
+                        <tr>
+                            <td><span class="badge-rank ${classeMedalha}">${posicao}º</span></td>
+                            <td>${item.sala}</td>
+                            <td style="color: var(--text-muted);">${item.total_avaliacoes} aulas</td>
+                            <td><span class="pontos-pill">${item.total_pontos} pts</span></td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (erro) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--danger);">
+                            Não foi possível conectar ao servidor para carregar as notas.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Carrega assim que a página abre e atualiza a cada 30 segundos
+        carregarRanking();
+        setInterval(carregarRanking, 30000);
+    </script>
+
+</body>
+</html>
