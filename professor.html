@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Professor - Limpe o Rego</title>
+  <style>
+    @import url('https://googleapis.com');
+    body {
+      font-family: 'Amatic SC', Arial, sans-serif;
+      font-size: 24px;
+      max-width: 600px;
+      margin: 40px auto;
+      background: #f4f4f9;
+      padding: 20px;
+    }
+    h1, h2 { text-align: center; }
+    input, button {
+      font-family: inherit;
+      font-size: 22px;
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      box-sizing: border-box;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-apagar {
+      background: #dc3545;
+      padding: 5px 10px;
+      font-size: 18px;
+      width: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      text-align: center;
+    }
+    th, td { padding: 10px; border: 1px solid #ddd; }
+    th { background: #007bff; color: white; }
+  </style>
+</head>
+<body>
+  <h1>🧹 Área do Professor</h1>
+  
+  <label>Senha do Professor:</label>
+  <input type="password" id="senha" placeholder="Digite a senha (1234)">
+
+  <label>Nome da Sala (ex: 1º A):</label>
+  <input type="text" id="sala" placeholder="Ex: 1º A">
+
+  <label>Pontos (use - para tirar, ex: -5):</label>
+  <input type="number" id="pontos" placeholder="Ex: 10 ou -5">
+
+  <button onclick="salvarNota()">Adicionar / Tirar Pontos</button>
+
+  <h2>Tabela Atual</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Sala</th>
+        <th>Pontos</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody id="tabela"></tbody>
+  </table>
+
+  <script>
+    let lista = [];
+
+    async function carregar() {
+      const res = await fetch('/api/notas');
+      lista = await res.json();
+      lista.sort((a, b) => b.pontos - a.pontos);
+      document.getElementById('tabela').innerHTML = lista.map((item, i) => `
+        <tr>
+          <td>${item.sala}</td>
+          <td>${item.pontos}</td>
+          <td><button class="btn-apagar" onclick="apagar(${i})">Excluir</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function salvarNota() {
+      const senha = document.getElementById('senha').value;
+      const sala = document.getElementById('sala').value.trim();
+      const pontos = Number(document.getElementById('pontos').value);
+
+      if (!sala || isNaN(pontos)) return alert('Preencha a sala e os pontos!');
+
+      const existente = lista.find(item => item.sala.toLowerCase() === sala.toLowerCase());
+      if (existente) {
+        existente.pontos += pontos;
+      } else {
+        lista.push({ sala, pontos });
+      }
+
+      await enviarParaServidor(senha);
+    }
+
+    async function apagar(index) {
+      const senha = document.getElementById('senha').value;
+      lista.splice(index, 1);
+      await enviarParaServidor(senha);
+    }
+
+    async function enviarParaServidor(senha) {
+      const res = await fetch('/api/notas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senha, lista })
+      });
+      if (res.status === 401) {
+        alert('Senha incorreta!');
+      } else {
+        document.getElementById('sala').value = '';
+        document.getElementById('pontos').value = '';
+        carregar();
+      }
+    }
+
+    carregar();
+  </script>
+</body>
+</html>
