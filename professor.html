@@ -1,109 +1,131 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Professor | Limpeza do Rego</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Professor - Limpe o Rego</title>
+  <style>
+    @import url('https://googleapis.com');
+    body {
+      font-family: 'Amatic SC', Arial, sans-serif;
+      font-size: 24px;
+      max-width: 600px;
+      margin: 40px auto;
+      background: #f4f4f9;
+      padding: 20px;
+    }
+    h1, h2 { text-align: center; }
+    input, button {
+      font-family: inherit;
+      font-size: 22px;
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      box-sizing: border-box;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-apagar {
+      background: #dc3545;
+      padding: 5px 10px;
+      font-size: 18px;
+      width: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      text-align: center;
+    }
+    th, td { padding: 10px; border: 1px solid #ddd; }
+    th { background: #007bff; color: white; }
+  </style>
 </head>
 <body>
+  <h1>🧹 Área do Professor</h1>
+  
+  <label>Senha do Professor:</label>
+  <input type="password" id="senha" placeholder="Digite a senha (1234)">
 
-    <div class="container">
-        <header>
-            <h1>Registro de Limpeza</h1>
-            <p>Avaliação pós-aula para o ranking bimestral</p>
-        </header>
+  <label>Nome da Sala (ex: 1º A):</label>
+  <input type="text" id="sala" placeholder="Ex: 1º A">
 
-        <form id="formAvaliacao" class="form-grid">
-            <div class="form-group full">
-                <label for="professor">Nome do Professor(a)</label>
-                <input type="text" id="professor" placeholder="Ex: Prof. Dimas" required>
-            </div>
+  <label>Pontos (use - para tirar, ex: -5):</label>
+  <input type="number" id="pontos" placeholder="Ex: 10 ou -5">
 
-            <div class="form-group">
-                <label for="sala">Turma / Sala</label>
-                <select id="sala" required>
-                    <option value="" disabled selected>Selecione a sala...</option>
-                    <option value="1ºA">1º Ano A</option>
-                    <option value="1ºB">1º Ano B</option>
-                    <option value="1ºC">1º Ano C</option>
-                    <option value="1ºD">1º Ano D</option>
-                    <option value="2ºA">2º Ano A</option>
-                    <option value="2ºB">2º Ano B</option>
-                    <option value="3ºA">3º Ano A</option>
-                    <option value="3ºB">3º Ano B</option>
-                </select>
-            </div>
+  <button onclick="salvarNota()">Adicionar / Tirar Pontos</button>
 
-            <div class="form-group">
-                <label for="data_avaliacao">Data da Aula</label>
-                <input type="date" id="data_avaliacao" required>
-            </div>
+  <h2>Tabela Atual</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Sala</th>
+        <th>Pontos</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody id="tabela"></tbody>
+  </table>
 
-            <div class="form-group full">
-                <label for="pontuacao">Nota de Limpeza (0 a 10)</label>
-                <input type="number" id="pontuacao" min="0" max="10" step="1" placeholder="Ex: 9" required>
-            </div>
+  <script>
+    let lista = [];
 
-            <div class="form-group full">
-                <button type="submit" class="btn" id="btnSalvar">Registrar Pontuação</button>
-            </div>
-        </form>
+    async function carregar() {
+      const res = await fetch('/api/notas');
+      lista = await res.json();
+      lista.sort((a, b) => b.pontos - a.pontos);
+      document.getElementById('tabela').innerHTML = lista.map((item, i) => `
+        <tr>
+          <td>${item.sala}</td>
+          <td>${item.pontos}</td>
+          <td><button class="btn-apagar" onclick="apagar(${i})">Excluir</button></td>
+        </tr>
+      `).join('');
+    }
 
-        <div id="feedback"></div>
-    </div>
+    async function salvarNota() {
+      const senha = document.getElementById('senha').value;
+      const sala = document.getElementById('sala').value.trim();
+      const pontos = Number(document.getElementById('pontos').value);
 
-    <script>
-        // Preenche a data de hoje automaticamente
-        document.getElementById('data_avaliacao').valueAsDate = new Date();
+      if (!sala || isNaN(pontos)) return alert('Preencha a sala e os pontos!');
 
-        const form = document.getElementById('formAvaliacao');
-        const feedback = document.getElementById('feedback');
-        const btnSalvar = document.getElementById('btnSalvar');
+      const existente = lista.find(item => item.sala.toLowerCase() === sala.toLowerCase());
+      if (existente) {
+        existente.pontos += pontos;
+      } else {
+        lista.push({ sala, pontos });
+      }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            btnSalvar.disabled = true;
-            btnSalvar.textContent = 'Salvando...';
+      await enviarParaServidor(senha);
+    }
 
-            const dados = {
-                professor: document.getElementById('professor').value.trim(),
-                sala: document.getElementById('sala').value,
-                pontuacao: Number(document.getElementById('pontuacao').value),
-                data_avaliacao: document.getElementById('data_avaliacao').value
-            };
+    async function apagar(index) {
+      const senha = document.getElementById('senha').value;
+      lista.splice(index, 1);
+      await enviarParaServidor(senha);
+    }
 
-            try {
-                const resposta = await fetch('http://localhost:3000/api/avaliacoes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dados)
-                });
+    async function enviarParaServidor(senha) {
+      const res = await fetch('/api/notas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senha, lista })
+      });
+      if (res.status === 401) {
+        alert('Senha incorreta!');
+      } else {
+        document.getElementById('sala').value = '';
+        document.getElementById('pontos').value = '';
+        carregar();
+      }
+    }
 
-                const resultado = await resposta.json();
-
-                if (resposta.ok) {
-                    mostrarFeedback(resultado.mensagem, 'sucesso');
-                    document.getElementById('pontuacao').value = '';
-                    document.getElementById('sala').selectedIndex = 0;
-                } else {
-                    mostrarFeedback(resultado.erro || 'Erro ao salvar.', 'erro');
-                }
-            } catch (err) {
-                mostrarFeedback('Servidor offline. Verifique se o Node.js está rodando.', 'erro');
-            } finally {
-                btnSalvar.disabled = false;
-                btnSalvar.textContent = 'Registrar Pontuação';
-            }
-        });
-
-        function mostrarFeedback(texto, tipo) {
-            feedback.textContent = texto;
-            feedback.className = tipo;
-            feedback.style.display = 'block';
-            setTimeout(() => { feedback.style.display = 'none'; }, 5000);
-        }
-    </script>
-
+    carregar();
+  </script>
 </body>
 </html>
