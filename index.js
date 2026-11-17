@@ -2,17 +2,17 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// 1. LISTA DE PROFESSORES E SENHAS (Edite aqui os nomes e senhas reais)
+// 1. LISTA DE PROFESSORES E SENHAS (Mantenha as senhas que você já configurou)
 const PROFESSORES = {
   'Dimas': 'sacolao',
   'Prof. Mariana': 'alfabeto',
   'Prof. Geovanna': 'gatos',
-  'Adriano': 'swtich'
+  'Adriano': 'switch'
 };
 
-// 2. LIMITES DE PONTUAÇÃO (Edite os valores se desejar)
-const LIMITE_LANCAMENTO_MIN = -20; // Máximo que pode tirar de uma vez
-const LIMITE_LANCAMENTO_MAX = 20;  // Máximo que pode dar de uma vez
+// 2. LIMITES DE PONTUAÇÃO (-10 a +10 por vez)
+const LIMITE_LANCAMENTO_MIN = -10; // Máximo que pode tirar de uma vez
+const LIMITE_LANCAMENTO_MAX = 10;  // Máximo que pode dar de uma vez
 const LIMITE_TOTAL_MIN = -100;     // Pontuação mínima total de uma sala
 const LIMITE_TOTAL_MAX = 500;      // Pontuação máxima total de uma sala
 
@@ -92,7 +92,7 @@ const server = http.createServer((req, res) => {
           return res.end('Senha incorreta!');
         }
 
-        // Valida limite do lançamento individual (se não for exclusão)
+        // Valida limite do lançamento individual (-10 a +10)
         if (pedido.acao !== 'exclusao' && pedido.pontosAlterados !== undefined) {
           const ptsLancados = Number(pedido.pontosAlterados);
           if (ptsLancados < LIMITE_LANCAMENTO_MIN || ptsLancados > LIMITE_LANCAMENTO_MAX) {
