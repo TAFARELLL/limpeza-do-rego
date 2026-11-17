@@ -72,8 +72,8 @@
   <label>Nome da Sala (ex: 1º A):</label>
   <input type="text" id="sala" placeholder="Ex: 1º A">
 
-  <label>Pontos (Limite por vez: -20 a +20):</label>
-  <input type="number" id="pontos" min="-20" max="20" placeholder="Ex: 10 ou -5">
+  <label>Pontos (Limite por vez: -10 a +10):</label>
+  <input type="number" id="pontos" min="-10" max="10" placeholder="Ex: 10 ou -5">
 
   <button onclick="salvarNota()">Adicionar / Tirar Pontos</button>
 
@@ -103,8 +103,8 @@
 
   <script>
     let lista = [];
-    const LIMITE_VEZ_MIN = -20;
-    const LIMITE_VEZ_MAX = 20;
+    const LIMITE_VEZ_MIN = -10;
+    const LIMITE_VEZ_MAX = 10;
     const LIMITE_SALA_MIN = -100;
     const LIMITE_SALA_MAX = 500;
 
@@ -177,7 +177,7 @@
         return alert('Preencha a sala e os pontos!');
       }
 
-      // Valida limite por lançamento (-20 a +20)
+      // Valida limite por lançamento (-10 a +10)
       if (pontos < LIMITE_VEZ_MIN || pontos > LIMITE_VEZ_MAX) {
         return alert(`Limite excedido! Você só pode dar ou tirar entre ${LIMITE_VEZ_MIN} e +${LIMITE_VEZ_MAX} pontos por vez.`);
       }
@@ -228,7 +228,7 @@
       if (!res.ok) {
         alert(mensagem);
       } else {
-        alert(mensagem); // Mostra "Olá, Dimas! Salvo com sucesso em 17/11/2026..."
+        alert(mensagem);
         document.getElementById('sala').value = '';
         document.getElementById('pontos').value = '';
         carregar();
