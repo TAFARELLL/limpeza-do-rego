@@ -2,19 +2,18 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// Lista com a senha individual de cada professor
+// Lista de professores e suas senhas
 const PROFESSORES = {
-  'prof_joao': 'senha123',
-  'prof_maria': 'maria2026',
-  'prof_carlos': 'limpeza10',
-  'coordenacao': 'admin2026'
+  'Prof. Mariana': 'alfabeto',
+  'Prof. Dimas': 'sacolao',
+  'Prof. Geovnna': 'gatos',
+  'Adriano': 'switch'
 };
 
-// O Render escolhe a porta automaticamente; no seu PC ele usa a 3000
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer((req, res) => {
-  // Link próprio dos Alunos (abre em / ou /alunos)
+  // Página dos Alunos
   if ((req.url === '/' || req.url === '/alunos') && req.method === 'GET') {
     const caminho = path.join(__dirname, 'alunos.html');
     fs.readFile(caminho, (err, data) => {
@@ -26,7 +25,7 @@ const server = http.createServer((req, res) => {
       res.end(data);
     });
 
-  // Link próprio dos Professores (abre em /professor)
+  // Página dos Professores
   } else if (req.url === '/professor' && req.method === 'GET') {
     const caminho = path.join(__dirname, 'professor.html');
     fs.readFile(caminho, (err, data) => {
@@ -38,38 +37,71 @@ const server = http.createServer((req, res) => {
       res.end(data);
     });
 
-  // API que entrega a lista de pontos para a tabela
+  // Entrega a lista de pontos para a tabela (mantém compatibilidade com alunos.html)
   } else if (req.url === '/api/notas' && req.method === 'GET') {
     const caminhoNotas = path.join(__dirname, 'notas.json');
     const dados = fs.existsSync(caminhoNotas) ? fs.readFileSync(caminhoNotas) : '[]';
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(dados);
 
-  // API que salva os pontos validando a senha de qualquer professor cadastrado
+  // Entrega o histórico completo (quem lançou, data e hora)
+  } else if (req.url === '/api/historico' && req.method === 'GET') {
+    const caminhoHist = path.join(__dirname, 'historico.json');
+    const dados = fs.existsSync(caminhoHist) ? fs.readFileSync(caminhoHist) : '[]';
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(dados);
+
+  // Salva os pontos e registra quem lançou + data e hora
   } else if (req.url === '/api/notas' && req.method === 'POST') {
     let corpo = '';
     req.on('data', pedaco => { corpo += pedaco; });
     req.on('end', () => {
       try {
         const pedido = JSON.parse(corpo);
-        const senhasValidas = Object.values(PROFESSORES);
+        
+        // Busca o nome do professor dono da senha
+        const entradaProf = Object.entries(PROFESSORES).find(
+          ([nome, senha]) => senha === pedido.senha
+        );
 
-        if (!senhasValidas.includes(pedido.senha)) {
+        if (!entradaProf) {
           res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
           return res.end('Senha incorreta');
         }
 
+        const nomeProfessor = entradaProf[0];
+
+        // Gera data e hora no fuso horário de São Paulo/Brasília
+        const dataHora = new Date().toLocaleString('pt-BR', {
+          timeZone: 'America/Sao_Paulo'
+        });
+
+        // 1. Salva a tabela atualizada
         const caminhoNotas = path.join(__dirname, 'notas.json');
         fs.writeFileSync(caminhoNotas, JSON.stringify(pedido.lista, null, 2));
+
+        // 2. Grava no arquivo de histórico para controle
+        const caminhoHist = path.join(__dirname, 'historico.json');
+        const historicoAtual = fs.existsSync(caminhoHist)
+          ? JSON.parse(fs.readFileSync(caminhoHist))
+          : [];
+
+        historicoAtual.unshift({
+          professor: nomeProfessor,
+          dataHora: dataHora,
+          pontuacao: pedido.lista
+        });
+
+        fs.writeFileSync(caminhoHist, JSON.stringify(historicoAtual, null, 2));
+
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('OK');
+        res.end(`Salvo por ${nomeProfessor} em ${dataHora}`);
       } catch (e) {
         res.writeHead(400);
         res.end('Erro nos dados enviados');
       }
     });
 
-  // Qualquer outro endereço mostra erro 404
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Página não encontrada');
