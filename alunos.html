@@ -1,63 +1,82 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Ranking - Limpe o Rego</title>
-  <style>
-    @import url('https://googleapis.com');
-    body {
-      font-family: 'Amatic SC', Arial, sans-serif;
-      font-size: 26px;
-      max-width: 600px;
-      margin: 40px auto;
-      background: #f4f4f9;
-      padding: 20px;
-      text-align: center;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background: white;
-    }
-    th, td {
-      padding: 12px;
-      border: 1px solid #ddd;
-    }
-    th {
-      background: #007bff;
-      color: white;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking das Salas | Limpeza do Rego</title>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <h1>🧹 Ranking de Limpeza</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Posição</th>
-        <th>Sala</th>
-        <th>Total de Pontos</th>
-      </tr>
-    </thead>
-    <tbody id="tabela"></tbody>
-  </table>
 
-  <script>
-    async function carregar() {
-      const res = await fetch('/api/notas');
-      const lista = await res.json();
-      lista.sort((a, b) => b.pontos - a.pontos);
-      const tbody = document.getElementById('tabela');
-      tbody.innerHTML = lista.map((item, i) => `
-        <tr>
-          <td>${i + 1}º</td>
-          <td>${item.sala}</td>
-          <td>${item.pontos}</td>
-        </tr>
-      `).join('');
-    }
-    carregar();
-  </script>
+    <div class="container">
+        <header>
+            <h1>🧹 Limpeza do Rego</h1>
+            <p>A turma líder no final do bimestre garante o Dia de Cinema!</p>
+        </header>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Posição</th>
+                    <th>Turma</th>
+                    <th>Pontuação Total</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+                <tr>
+                    <td colspan="3" style="text-align: center; color: var(--text-muted);">
+                        Carregando classificação do servidor (aguarde alguns segundos)...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function carregarRanking() {
+            const tbody = document.getElementById('tabela-corpo');
+
+            try {
+                // Usando a URL relativa para funcionar no Render e localmente
+                const resposta = await fetch('/api/notas');
+                const salas = await resposta.json();
+
+                if (!salas || salas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhuma avaliação registrada ainda.</td></tr>';
+                    return;
+                }
+
+                // Ordena do maior para o menor ponto
+                salas.sort((a, b) => b.pontos - a.pontos);
+
+                tbody.innerHTML = salas.map((item, index) => {
+                    const posicao = index + 1;
+                    const classeMedalha = posicao <= 3 ? `rank-${posicao}` : '';
+
+                    return `
+                        <tr>
+                            <td><span class="badge-rank ${classeMedalha}">${posicao}º</span></td>
+                            <td>${item.sala}</td>
+                            <td><span class="pontos-pill">${item.pontos} pts</span></td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (erro) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--danger);">
+                            O servidor está acordando... Atualize a página em instantes.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Carrega assim que a página abre e atualiza a cada 30 segundos
+        carregarRanking();
+        setInterval(carregarRanking, 30000);
+    </script>
+
 </body>
 </html>
