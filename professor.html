@@ -2,240 +2,109 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Professor - Limpe o Rego</title>
-  <style>
-    @import url('https://googleapis.com');
-    body {
-      font-family: 'Amatic SC', Arial, sans-serif;
-      font-size: 26px;
-      max-width: 650px;
-      margin: 40px auto;
-      background: #f4f4f9;
-      padding: 20px;
-    }
-    h1, h2 { text-align: center; }
-    input, button {
-      font-family: inherit;
-      font-size: 24px;
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      box-sizing: border-box;
-    }
-    button {
-      background: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover { background: #218838; }
-    .btn-apagar {
-      background: #dc3545;
-      padding: 5px 12px;
-      font-size: 20px;
-      width: auto;
-    }
-    .notificacao-prof {
-      display: none;
-      background: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 5px;
-      text-align: center;
-      font-weight: bold;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      background: white;
-      text-align: center;
-    }
-    th, td { padding: 10px; border: 1px solid #ddd; }
-    th { background: #007bff; color: white; }
-    .tabela-hist td {
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      text-align: left;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel do Professor | Limpeza do Rego</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <h1>🧹 Área do Professor</h1>
+  <div class="container">
+    <h1>🧹 Painel do Professor</h1>
+    <p class="subtitle">Avaliação pós-aula para o ranking bimestral</p>
 
-  <label>Senha do Professor:</label>
-  <input type="password" id="senha" placeholder="Digite sua senha" oninput="checarSenhaDigitada()">
-  <div id="avisoProfessor" class="notificacao-prof"></div>
+    <form id="form-professor">
+      <div class="form-group">
+        <label for="professor">Nome do Professor(a)</label>
+        <select id="professor" required>
+          <option value="">Selecione seu nome...</option>
+          <option value="Dimas">Dimas</option>
+          <option value="Prof. Mariana">Prof. Mariana</option>
+          <option value="Prof. Geovanna">Prof. Geovanna</option>
+          <option value="Adriano">Adriano</option>
+        </select>
+      </div>
 
-  <label>Nome da Sala (ex: 1º A):</label>
-  <input type="text" id="sala" placeholder="Ex: 1º A">
+      <div class="form-group">
+        <label for="senha">Senha de Acesso</label>
+        <input type="password" id="senha" placeholder="Digite sua senha" required>
+      </div>
 
-  <label>Pontos (Limite por vez: -10 a +10):</label>
-  <input type="number" id="pontos" min="-10" max="10" placeholder="Ex: 10 ou -5">
+      <div class="form-group">
+        <label for="sala">Turma / Sala</label>
+        <select id="sala" required>
+          <option value="">Selecione a sala...</option>
+          <optgroup label="2º Anos">
+            <option value="2ºA">2ºA</option>
+            <option value="2ºB">2ºB</option>
+            <option value="2ºC">2ºC</option>
+          </optgroup>
+          <optgroup label="3º Anos">
+            <option value="3ºA (ADM)">3ºA (ADM)</option>
+            <option value="3ºB (DS)">3ºB (DS)</option>
+            <option value="3ºC">3ºC</option>
+            <option value="3ºD">3ºD</option>
+            <option value="3ºE">3ºE</option>
+            <option value="3ºF">3ºF</option>
+            <option value="3ºG">3ºG</option>
+            <option value="3ºH">3ºH</option>
+          </optgroup>
+        </select>
+      </div>
 
-  <button onclick="salvarNota()">Adicionar / Tirar Pontos</button>
+      <div class="form-group">
+        <label for="pontos">Nota de Limpeza (-10 a +10)</label>
+        <input type="number" id="pontos" min="-10" max="10" placeholder="Ex: 5" required>
+      </div>
 
-  <h2>Tabela Atual</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Sala</th>
-        <th>Pontos</th>
-        <th>Ação</th>
-      </tr>
-    </thead>
-    <tbody id="tabela"></tbody>
-  </table>
+      <button type="submit" class="btn">Registrar Pontuação</button>
+    </form>
 
-  <h2>🕒 Histórico de Alterações</h2>
-  <table class="tabela-hist">
-    <thead>
-      <tr>
-        <th>Professor</th>
-        <th>Data e Hora</th>
-        <th>O que foi feito</th>
-      </tr>
-    </thead>
-    <tbody id="tabelaHistorico"></tbody>
-  </table>
+    <p id="mensagem" style="margin-top: 15px; text-align: center; font-weight: bold;"></p>
+  </div>
 
   <script>
-    let lista = [];
-    const LIMITE_VEZ_MIN = -10;
-    const LIMITE_VEZ_MAX = 10;
-    const LIMITE_SALA_MIN = -100;
-    const LIMITE_SALA_MAX = 500;
-
-    // Reconhece o professor automaticamente assim que ele termina de digitar a senha
-    async function checarSenhaDigitada() {
+    document.getElementById('form-professor').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const professorSelecionado = document.getElementById('professor').value;
       const senha = document.getElementById('senha').value;
-      const aviso = document.getElementById('avisoProfessor');
+      const sala = document.getElementById('sala').value;
+      const pontosAlterados = parseInt(document.getElementById('pontos').value);
+      const msg = document.getElementById('mensagem');
 
-      if (!senha) {
-        aviso.style.display = 'none';
-        return;
+      try {
+        const resGet = await fetch('/api/notas');
+        const listaAtual = await resGet.json();
+
+        let itemSala = listaAtual.find(i => i.sala === sala);
+        let pontosAtuais = itemSala ? itemSala.pontos : 0;
+        let novoTotal = pontosAtuais + pontosAlterados;
+
+        let listaFinal = [...listaAtual];
+        if (itemSala) {
+          itemSala.pontos = novoTotal;
+        } else {
+          listaFinal.push({ sala: sala, pontos: novoTotal });
+        }
+
+        const resposta = await fetch('/api/notas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ senha, lista: listaFinal, pontosAlterados })
+        });
+
+        const texto = await resposta.text();
+        if (resposta.ok) {
+          msg.style.color = '#4ade80';
+          msg.textContent = texto;
+          document.getElementById('form-professor').reset();
+        } else {
+          msg.style.color = '#f87171';
+          msg.textContent = texto;
+        }
+      } catch (err) {
+        msg.style.color = '#f87171';
+        msg.textContent = 'Erro ao conectar com o servidor.';
       }
-
-      const res = await fetch('/api/verificar-senha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senha })
-      });
-
-      const dados = await res.json();
-      if (dados.valido) {
-        aviso.style.display = 'block';
-        aviso.innerText = `👋 Olá, ${dados.nome}! Senha reconhecida.`;
-      } else {
-        aviso.style.display = 'none';
-      }
-    }
-
-    async function carregar() {
-      const res = await fetch('/api/notas');
-      lista = await res.json();
-      lista.sort((a, b) => b.pontos - a.pontos);
-      document.getElementById('tabela').innerHTML = lista.map((item, i) => `
-        <tr>
-          <td>${item.sala}</td>
-          <td>${item.pontos}</td>
-          <td><button class="btn-apagar" onclick="apagar(${i})">Excluir</button></td>
-        </tr>
-      `).join('');
-
-      carregarHistorico();
-    }
-
-    async function carregarHistorico() {
-      const res = await fetch('/api/historico');
-      const hist = await res.json();
-      const tbody = document.getElementById('tabelaHistorico');
-
-      if (hist.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhuma alteração registrada ainda.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = hist.map(h => `
-        <tr>
-          <td><strong>${h.professor}</strong></td>
-          <td>${h.dataHora}</td>
-          <td>${h.detalhe}</td>
-        </tr>
-      `).join('');
-    }
-
-    async function salvarNota() {
-      const senha = document.getElementById('senha').value;
-      const sala = document.getElementById('sala').value.trim();
-      const pontos = Number(document.getElementById('pontos').value);
-
-      if (!senha) return alert('Digite a senha do professor!');
-      if (!sala || isNaN(pontos) || document.getElementById('pontos').value === '') {
-        return alert('Preencha a sala e os pontos!');
-      }
-
-      // Valida limite por lançamento (-10 a +10)
-      if (pontos < LIMITE_VEZ_MIN || pontos > LIMITE_VEZ_MAX) {
-        return alert(`Limite excedido! Você só pode dar ou tirar entre ${LIMITE_VEZ_MIN} e +${LIMITE_VEZ_MAX} pontos por vez.`);
-      }
-
-      // Faz uma cópia temporária para testar o limite acumulado da sala antes de salvar
-      const novaLista = JSON.parse(JSON.stringify(lista));
-      const existente = novaLista.find(item => item.sala.toLowerCase() === sala.toLowerCase());
-      let novoTotal = pontos;
-
-      if (existente) {
-        existente.pontos += pontos;
-        novoTotal = existente.pontos;
-      } else {
-        novaLista.push({ sala, pontos });
-      }
-
-      // Valida limite total da sala (-100 a +500)
-      if (novoTotal < LIMITE_SALA_MIN || novoTotal > LIMITE_SALA_MAX) {
-        return alert(`A sala ${sala} ficaria com ${novoTotal} pontos. O limite total permitido é de ${LIMITE_SALA_MIN} até ${LIMITE_SALA_MAX} pontos!`);
-      }
-
-      const sinal = pontos >= 0 ? `+${pontos}` : `${pontos}`;
-      const detalhe = `${sinal} pts para ${sala} (Total: ${novoTotal})`;
-
-      await enviarParaServidor(senha, novaLista, detalhe, 'lancamento', pontos);
-    }
-
-    async function apagar(index) {
-      const senha = document.getElementById('senha').value;
-      if (!senha) return alert('Digite sua senha antes de excluir uma sala!');
-
-      const salaRemovida = lista[index].sala;
-      const novaLista = [...lista];
-      novaLista.splice(index, 1);
-
-      await enviarParaServidor(senha, novaLista, `Excluiu a sala ${salaRemovida}`, 'exclusao', 0);
-    }
-
-    async function enviarParaServidor(senha, novaLista, detalhe, acao, pontosAlterados) {
-      const res = await fetch('/api/notas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senha, lista: novaLista, detalhe, acao, pontosAlterados })
-      });
-
-      const mensagem = await res.text();
-
-      if (!res.ok) {
-        alert(mensagem);
-      } else {
-        alert(mensagem);
-        document.getElementById('sala').value = '';
-        document.getElementById('pontos').value = '';
-        carregar();
-      }
-    }
-
-    carregar();
+    });
   </script>
 </body>
 </html>
