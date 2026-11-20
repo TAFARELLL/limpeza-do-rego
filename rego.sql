@@ -20,3 +20,6 @@ FROM avaliacoes
 WHERE data_avaliacao BETWEEN '2026-01-01' AND '2026-04-30'
 GROUP BY sala
 ORDER BY total_pontos DESC;
+
+
+    
