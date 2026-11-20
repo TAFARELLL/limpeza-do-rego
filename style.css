@@ -55,6 +55,12 @@ header h1 {
     -webkit-text-fill-color: transparent;
 }
 
+/* Faz a vassoura aparecer bonitinha antes do título */
+header h1::before {
+    content: "🧹 ";
+    -webkit-text-fill-color: initial;
+}
+
 header p {
     color: var(--text-muted);
     margin-top: 0.5rem;
@@ -72,6 +78,7 @@ header p {
 .form-group {
     display: flex;
     flex-direction: column;
+    margin-bottom: 1rem;
 }
 
 .form-group.full {
@@ -111,6 +118,7 @@ input:focus, select:focus {
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
     margin-top: 1rem;
+    width: 100%;
 }
 
 .btn:hover {
