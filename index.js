@@ -1,8 +1,14 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
-// 1. LISTA DE PROFESSORES E SENHAS (Mantenha as senhas que você já configurou)
+// Configuração do Supabase com a chave correta
+const supabaseUrl = 'https://yutvabwyvzrcysisxqaz.supabase.co';
+const supabaseKey = 'sb_publishable_kwS_CozQjcJLZjBjeZZXQA_E0NrbWDI'; 
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// 1. LISTA DE PROFESSORES E SENHAS
 const PROFESSORES = {
   'Dimas': 'sacolao',
   'Prof. Mariana': 'alfabeto',
@@ -10,17 +16,28 @@ const PROFESSORES = {
   'Adriano': 'switch'
 };
 
-// 2. LIMITES DE PONTUAÇÃO (-10 a +10 por vez)
-const LIMITE_LANCAMENTO_MIN = -10; // Máximo que pode tirar de uma vez
-const LIMITE_LANCAMENTO_MAX = 10;  // Máximo que pode dar de uma vez
-const LIMITE_TOTAL_MIN = -100;     // Pontuação mínima total de uma sala
-const LIMITE_TOTAL_MAX = 500;      // Pontuação máxima total de uma sala
+const LIMITE_LANCAMENTO_MIN = -10;
+const LIMITE_LANCAMENTO_MAX = 10;
+const LIMITE_TOTAL_MIN = -100;
+const LIMITE_TOTAL_MAX = 500;
 
 const PORT = process.env.PORT || 3000;
 
-const server = http.createServer((req, res) => {
-  // Página dos Alunos
-  if ((req.url === '/' || req.url === '/alunos') && req.method === 'GET') {
+const server = http.createServer(async (req, res) => {
+  // Entrega o arquivo CSS
+  if (req.url === '/style.css' && req.method === 'GET') {
+    const caminho = path.join(__dirname, 'style.css');
+    fs.readFile(caminho, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        return res.end('CSS não encontrado');
+      }
+      res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' });
+      res.end(data);
+    });
+
+  // Página dos Alunos (Rota principal "/")
+  } else if ((req.url === '/' || req.url === '/alunos') && req.method === 'GET') {
     const caminho = path.join(__dirname, 'alunos.html');
     fs.readFile(caminho, (err, data) => {
       if (err) {
@@ -43,7 +60,7 @@ const server = http.createServer((req, res) => {
       res.end(data);
     });
 
-  // Verifica a senha em tempo real e devolve o nome ("Olá, Dimas!")
+  // Verifica a senha
   } else if (req.url === '/api/verificar-senha' && req.method === 'POST') {
     let corpo = '';
     req.on('data', p => { corpo += p; });
@@ -63,36 +80,33 @@ const server = http.createServer((req, res) => {
       }
     });
 
-  // Retorna as notas atuais
+  // Retorna as notas do Banco de Dados (Supabase)
   } else if (req.url === '/api/notas' && req.method === 'GET') {
-    const caminhoNotas = path.join(__dirname, 'notas.json');
-    const dados = fs.existsSync(caminhoNotas) ? fs.readFileSync(caminhoNotas) : '[]';
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(dados);
+    try {
+      const { data, error } = await supabase.from('notas').select('*');
+      if (error) throw error;
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(data || []));
+    } catch (e) {
+      console.error("Erro ao buscar notas:", e);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify([]));
+    }
 
-  // Retorna o histórico de alterações (quem, quando e o que fez)
-  } else if (req.url === '/api/historico' && req.method === 'GET') {
-    const caminhoHist = path.join(__dirname, 'historico.json');
-    const dados = fs.existsSync(caminhoHist) ? fs.readFileSync(caminhoHist) : '[]';
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(dados);
-
-  // Salva as notas validando senha, limites e gravando data/hora
+  // Salva as notas direto no Supabase
   } else if (req.url === '/api/notas' && req.method === 'POST') {
     let corpo = '';
     req.on('data', p => { corpo += p; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const pedido = JSON.parse(corpo);
 
-        // Valida senha
         const entradaProf = Object.entries(PROFESSORES).find(([nome, s]) => s === pedido.senha);
         if (!entradaProf) {
           res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
           return res.end('Senha incorreta!');
         }
 
-        // Valida limite do lançamento individual (-10 a +10)
         if (pedido.acao !== 'exclusao' && pedido.pontosAlterados !== undefined) {
           const ptsLancados = Number(pedido.pontosAlterados);
           if (ptsLancados < LIMITE_LANCAMENTO_MIN || ptsLancados > LIMITE_LANCAMENTO_MAX) {
@@ -101,38 +115,31 @@ const server = http.createServer((req, res) => {
           }
         }
 
-        // Valida limite total acumulado de cada sala
         for (const item of pedido.lista) {
           if (item.pontos < LIMITE_TOTAL_MIN || item.pontos > LIMITE_TOTAL_MAX) {
             res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
-            return res.end(`A sala ${item.sala} não pode ultrapassar os limites (${LIMITE_TOTAL_MIN} a ${LIMITE_TOTAL_MAX} pts).`);
+            return res.end(`A sala ${item.sala} não pode ultrapassar os limites.`);
           }
         }
 
         const nomeProfessor = entradaProf[0];
         const dataHora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-        // Salva tabela atualizada
-        const caminhoNotas = path.join(__dirname, 'notas.json');
-        fs.writeFileSync(caminhoNotas, JSON.stringify(pedido.lista, null, 2));
+       // Apaga e insere de forma limpa usando a restrição da sala
+        for (const item of pedido.lista) {
+          const { error: errUpsert } = await supabase
+            .from('notas')
+            .upsert({ sala: item.sala, pontos: item.pontos }, { onConflict: 'sala' });
 
-        // Grava registro no histórico
-        const caminhoHist = path.join(__dirname, 'historico.json');
-        const historicoAtual = fs.existsSync(caminhoHist) ? JSON.parse(fs.readFileSync(caminhoHist)) : [];
-        
-        historicoAtual.unshift({
-          professor: nomeProfessor,
-          dataHora: dataHora,
-          detalhe: pedido.detalhe || 'Atualizou a tabela'
-        });
-
-        fs.writeFileSync(caminhoHist, JSON.stringify(historicoAtual, null, 2));
+          if (errUpsert) throw errUpsert;
+        }
 
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end(`Olá, ${nomeProfessor}! Salvo com sucesso em ${dataHora}.`);
       } catch (e) {
+        console.error("ERRO DETALHADO DO SUPABASE:", e);
         res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Erro ao salvar os dados.');
+        res.end('Erro ao salvar os dados no banco.');
       }
     });
 
