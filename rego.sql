@@ -22,4 +22,5 @@ GROUP BY sala
 ORDER BY total_pontos DESC;
 
 
+
     
